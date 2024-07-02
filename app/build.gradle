@@ -38,6 +38,10 @@ android {
 }
 
 dependencies {
+    // https://mvnrepository.com/artifact/org.projectlombok/lombok
+    compileOnly libs.lombok
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+    implementation libs.gson
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity

@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import vn.edu.fpt.thesis_test.R;
+import vn.edu.fpt.thesis_test.services.AutomaticService;
 import vn.edu.fpt.thesis_test.services.OverlayServices;
 
 public class TestFragment extends Fragment {
@@ -25,6 +26,8 @@ public class TestFragment extends Fragment {
     private static final int OVERLAY_PERMISSION_REQUEST_CODE = 1;
     private Button initiateOverlayButton;
     private Context context;
+    private com.google.android.material.textfield.TextInputEditText inputEditText;
+
 
 
 
@@ -37,8 +40,10 @@ public class TestFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_test, container, false);
+        inputEditText = view.findViewById(R.id.inputEditText);
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_test, container, false);
+        return view;
     }
 
     private void onViewStart() {
@@ -57,7 +62,12 @@ public class TestFragment extends Fragment {
     }
 
     private void initiateOverlay(View view) {
-        context.startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
-        Log.e(TAG, "initiateOverlay: " + "Overlay initiated" + " " + context.toString());
+//        Intent intent = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
+//        intent.putExtra("Json", inputEditText.getText());
+//        context.startActivity(intent);
+//        Log.e(TAG, "initiateOverlay: " + "Overlay initiated" + " " + context.toString());
+        Intent intent = new Intent(context, AutomaticService.class);
+        intent.putExtra("Json", inputEditText.getText());
+        context.startService(intent);
     }
 }

@@ -32,8 +32,6 @@ import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import androidx.annotation.Nullable;
-import androidx.activity.ComponentActivity;
 
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
@@ -44,19 +42,11 @@ import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Calendar;
 import java.util.Date;
 
-import vn.edu.fpt.thesis_test.MainActivity;
 import vn.edu.fpt.thesis_test.R;
-import vn.edu.fpt.thesis_test.actions.ClickAction;
 import vn.edu.fpt.thesis_test.activity.ScreenCapturePermissionActivity;
-import vn.edu.fpt.thesis_test.helper.FileUtil;
-import vn.edu.fpt.thesis_test.helper.ScreenshotUtil;
 
 public class OverlayServices extends AccessibilityService {
 
