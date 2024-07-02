@@ -1,6 +1,8 @@
 package vn.edu.fpt.thesis_test.services;
 
 
+import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.IntentService;
@@ -10,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -24,20 +27,41 @@ import android.os.Looper;
 import android.os.ResultReceiver;
 import android.util.Log;
 import android.view.Display;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.OrientationEventListener;
+import android.view.View;
 import android.view.WindowManager;
+import android.view.accessibility.AccessibilityEvent;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
 import androidx.core.util.Pair;
 
-import vn.edu.fpt.thesis_test.helper.NotificationUtils;
+import com.google.gson.Gson;
 
-public class ScreenCaptureService extends Service {
+import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
+
+import vn.edu.fpt.thesis_test.R;
+import vn.edu.fpt.thesis_test.actions.Action;
+import vn.edu.fpt.thesis_test.helper.NotificationUtils;
+import vn.edu.fpt.thesis_test.model.Step;
+
+public class ScreenCaptureService extends AccessibilityService {
 
     private static final String TAG = "ScreenCaptureService";
     private static final String RESULT_CODE = "RESULT_CODE";
@@ -46,10 +70,9 @@ public class ScreenCaptureService extends Service {
     private static final String START = "START";
     private static final String STOP = "STOP";
     private static final String SCREENCAP_NAME = "screencap";
-
-    private static final String RESULT_RECEIVER = "RESULT_RECEIVER";
     private static int IMAGES_PRODUCED;
-
+    private WindowManager windowManager;
+    private View overlayView;
     private MediaProjection mMediaProjection;
     private String mStoreDir;
     private ImageReader mImageReader;
@@ -61,9 +84,9 @@ public class ScreenCaptureService extends Service {
     private int mHeight;
     private int mRotation;
     private OrientationChangeCallback mOrientationChangeCallback;
-    private String on;
-
-
+    private String json;
+    private Step[] steps;
+    private ImageView imageView;
 
     public static Intent getStartIntent(Context context, int resultCode, Intent data) {
         Intent intent = new Intent(context, ScreenCaptureService.class);
@@ -96,44 +119,57 @@ public class ScreenCaptureService extends Service {
     private class ImageAvailableListener implements ImageReader.OnImageAvailableListener {
         @Override
         public void onImageAvailable(ImageReader reader) {
+            Action action = new Action();
+            for (int i = 0; i < steps.length; i++) {
+                int finalI = i;
+                if (steps[finalI].getActionType().equals("click")) {
+                            Bitmap bitmap = null;
+                            try (Image image = mImageReader.acquireLatestImage()) {
+                                if (image != null) {
+                                    Image.Plane[] planes = image.getPlanes();
+                                    ByteBuffer buffer = planes[0].getBuffer();
+                                    int pixelStride = planes[0].getPixelStride();
+                                    int rowStride = planes[0].getRowStride();
+                                    int rowPadding = rowStride - pixelStride * mWidth;
+                                    // create bitmap
+                                    bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.ARGB_8888);
+                                    bitmap.copyPixelsFromBuffer(buffer);
+                                    Mat mat = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC4);
+                                    Utils.bitmapToMat(bitmap, mat);
 
-            FileOutputStream fos = null;
-            Bitmap bitmap = null;
-            try (Image image = mImageReader.acquireLatestImage()) {
-                if (image != null) {
-                    Image.Plane[] planes = image.getPlanes();
-                    ByteBuffer buffer = planes[0].getBuffer();
-                    int pixelStride = planes[0].getPixelStride();
-                    int rowStride = planes[0].getRowStride();
-                    int rowPadding = rowStride - pixelStride * mWidth;
+                                    //template bitmap
+                                    URL url = new URL(steps[finalI].getOn());
+                                    Bitmap bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                                    Mat template = new Mat(bmp.getHeight(), bmp.getWidth(), CvType.CV_8UC4);
+                                    Utils.bitmapToMat(bmp, template);
+                                    //templateMatching
+                                    Mat result = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC4);
+                                    Imgproc.matchTemplate(mat, template, result, Imgproc.TM_CCOEFF_NORMED);
 
-                    // create bitmap
-                    bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.ARGB_8888);
-                    bitmap.copyPixelsFromBuffer(buffer);
+                                    // Find the location of the best match
+                                    Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
+                                    Point matchLoc;
+                                    if (Imgproc.TM_CCOEFF_NORMED == Imgproc.TM_SQDIFF || Imgproc.TM_CCOEFF_NORMED == Imgproc.TM_SQDIFF_NORMED) {
+                                        matchLoc = mmr.minLoc;
+                                    } else {
+                                        matchLoc = mmr.maxLoc;
+                                    }
+                                    Imgproc.rectangle(mat, matchLoc, new Point(matchLoc.x + template.cols(), matchLoc.y + template.rows()), new Scalar(255, 0, 0), 2);
+                                    Bitmap outputBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+                                    Utils.matToBitmap(mat, outputBitmap);
+                                    imageView.setImageBitmap(outputBitmap);
+                                    IMAGES_PRODUCED++;
+                                    Log.e(TAG, "captured image: " + IMAGES_PRODUCED + "current step: " + finalI + "found at: "+ matchLoc.x + " " + matchLoc.y);
+                                }
 
-                    // write bitmap to a file
-                    fos = new FileOutputStream(mStoreDir + "/myscreen_" + IMAGES_PRODUCED + ".png");
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-
-                    IMAGES_PRODUCED++;
-                    Log.e(TAG, "captured image: " + IMAGES_PRODUCED);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            } finally {
+//                                if (bitmap != null) {
+//                                    bitmap.recycle();
+//                                }
+                            }
                 }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                if (fos != null) {
-                    try {
-                        fos.close();
-                    } catch (IOException ioe) {
-                        ioe.printStackTrace();
-                    }
-                }
-
-                if (bitmap != null) {
-                    bitmap.recycle();
-                }
-
             }
         }
     }
@@ -180,14 +216,18 @@ public class ScreenCaptureService extends Service {
     }
 
     @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+
+    }
+
+    @Override
+    public void onInterrupt() {
+
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-
         Log.e(TAG, "onCreate: sevices started");
         File externalFilesDir = getExternalFilesDir(null);
         if (externalFilesDir != null) {
@@ -218,9 +258,20 @@ public class ScreenCaptureService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        System.loadLibrary("opencv_java4");
+        AccessibilityServiceInfo info = new AccessibilityServiceInfo();
+        info.eventTypes = AccessibilityEvent.TYPE_VIEW_CLICKED |
+                AccessibilityEvent.TYPE_VIEW_FOCUSED;
+        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN;
+        info.notificationTimeout = 100;
+        this.setServiceInfo(info);
+        json = intent.getExtras().get("json").toString();
+        steps = bindStep(json);
+        showOverlay();
         Log.e(TAG, "onStartCommand Services started");
         if (intent != null) {
-            on = intent.getStringExtra("on");
+            json = intent.getExtras().get("json").toString();
+            steps = bindStep(json);
         }
         if (isStartCommand(intent)) {
             Pair<Integer, Notification> notification = NotificationUtils.getNotification(this);
@@ -284,13 +335,56 @@ public class ScreenCaptureService extends Service {
                 mDensity, getVirtualDisplayFlags(), mImageReader.getSurface(), null, mHandler);
         mImageReader.setOnImageAvailableListener(new ImageAvailableListener(), mHandler);
     }
-    private void sendResult(ResultReceiver resultReceiver, int resultCode, String message) {
-        if (resultReceiver != null) {
-            Bundle bundle = new Bundle();
-            bundle.putString("result_data", message);
-            resultReceiver.send(resultCode, bundle);
-        }
+    private Step[] bindStep(String json) {
+        Gson gson = new Gson();
+        return gson.fromJson(json, Step[].class);
+
+    }
+    private void showOverlay() {
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+        overlayView = inflater.inflate(R.layout.overlay_layout, null);
+
+        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT);
+
+        params.gravity = Gravity.TOP | Gravity.LEFT;
+        params.x = 0;
+        params.y = 0;
+
+        windowManager.addView(overlayView, params);
+
+        ImageButton closeButton = overlayView.findViewById(R.id.stop_button);
+        closeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                removeOverlay();
+            }
+        });
+        ImageButton playButton = overlayView.findViewById(R.id.play_button);
+        playButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
+        ImageButton cameraButton = overlayView.findViewById(R.id.camera);
+        cameraButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+            }
+        });
+        imageView = overlayView.findViewById(R.id.screenshot_image_view);
     }
 
-
+    private void removeOverlay() {
+        if (overlayView != null) {
+            windowManager.removeView(overlayView);
+            overlayView = null;
+        }
+    }
 }

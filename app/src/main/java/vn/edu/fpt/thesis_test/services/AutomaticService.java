@@ -32,12 +32,11 @@ public class AutomaticService extends AccessibilityService {
     private WindowManager windowManager;
     private View overlayView;
     private Step[] steps;
-    private MediaProjectionManager mProjectionManager;
-    private BroadcastReceiver resultReceiver;
+    private String json;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        //mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         System.loadLibrary("opencv_java4");
         AccessibilityServiceInfo info = new AccessibilityServiceInfo();
         info.eventTypes = AccessibilityEvent.TYPE_VIEW_CLICKED |
@@ -45,10 +44,8 @@ public class AutomaticService extends AccessibilityService {
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN;
         info.notificationTimeout = 100;
         this.setServiceInfo(info);
-        Log.e(TAG, "Automatic Service Started: ");
-        String json = intent.getExtras().get("Json").toString();
+        json = intent.getExtras().get("json").toString();
         steps = bindStep(json);
-        Log.e(TAG, "Steps: " + steps[0].getActionType());
         showOverlay();
         super.onCreate();
         return super.onStartCommand(intent, flags, startId);
@@ -119,7 +116,6 @@ public class AutomaticService extends AccessibilityService {
                         startProjection(steps[finalI].getOn());
                         Log.e(TAG, "Click number" + finalI );
                         action.clickAction(550,1075, steps[finalI].getDuration(), steps[finalI].getTries(), AutomaticService.this);
-
                         Thread.sleep(2000);
                     }
                 } catch (Exception e) {
@@ -139,18 +135,16 @@ public class AutomaticService extends AccessibilityService {
     private Step[] bindStep(String json) {
         Gson gson = new Gson();
         return gson.fromJson(json, Step[].class);
-
     }
     private void startProjection(String on) {
         Log.e(TAG, "Start Projection: ");
         Intent intent = new Intent(this, ScreenCapturePermissionActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.putExtra("on", on);
+        intent.putExtra("json", json) ;
         startActivity(intent);
     }
-
-
     private void stopProjection() {
         startService(vn.edu.fpt.thesis_test.services.ScreenCaptureService.getStopIntent(this));
     }
+
 }

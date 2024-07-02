@@ -2,24 +2,21 @@ package vn.edu.fpt.thesis_test.fragment;
 
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
-import android.provider.Settings;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import vn.edu.fpt.thesis_test.R;
+import vn.edu.fpt.thesis_test.activity.ScreenCapturePermissionActivity;
 import vn.edu.fpt.thesis_test.services.AutomaticService;
-import vn.edu.fpt.thesis_test.services.OverlayServices;
+import vn.edu.fpt.thesis_test.services.ScreenCaptureService;
 
 public class TestFragment extends Fragment {
     private static final String TAG = "TestFragment";
@@ -27,10 +24,6 @@ public class TestFragment extends Fragment {
     private Button initiateOverlayButton;
     private Context context;
     private com.google.android.material.textfield.TextInputEditText inputEditText;
-
-
-
-
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
@@ -62,12 +55,9 @@ public class TestFragment extends Fragment {
     }
 
     private void initiateOverlay(View view) {
-//        Intent intent = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
-//        intent.putExtra("Json", inputEditText.getText());
-//        context.startActivity(intent);
-//        Log.e(TAG, "initiateOverlay: " + "Overlay initiated" + " " + context.toString());
-        Intent intent = new Intent(context, AutomaticService.class);
-        intent.putExtra("Json", inputEditText.getText());
-        context.startService(intent);
+        Intent intent = new Intent(context, ScreenCapturePermissionActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra("json", inputEditText.getText()) ;
+        startActivity(intent);
     }
 }

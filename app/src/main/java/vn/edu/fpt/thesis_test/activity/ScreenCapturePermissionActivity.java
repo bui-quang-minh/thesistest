@@ -12,12 +12,10 @@ public class ScreenCapturePermissionActivity extends Activity {
 
     private static final int REQUEST_CODE = 100;
     private MediaProjectionManager mediaProjectionManager;
-    private String on;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        on = getIntent().getStringExtra("on");
         startProjection();
     }
 
@@ -26,7 +24,8 @@ public class ScreenCapturePermissionActivity extends Activity {
         if (requestCode == REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 Intent intent = vn.edu.fpt.thesis_test.services.ScreenCaptureService.getStartIntent(this, resultCode, data);
-                intent.putExtra("on", on);
+                String json = getIntent().getExtras().get("json").toString();
+                intent.putExtra("json", json);
                 startService(intent);
                 finish();
             }
