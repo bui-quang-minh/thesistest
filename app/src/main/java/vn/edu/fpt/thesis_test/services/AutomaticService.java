@@ -45,7 +45,7 @@ public class AutomaticService extends AccessibilityService {
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN;
         info.notificationTimeout = 100;
         this.setServiceInfo(info);
-        Log.e(TAG, "jhgfUKGKH<>LKH>KH<>J<HK:");
+        Log.e(TAG, "Automatic Service Started: ");
         String json = intent.getExtras().get("Json").toString();
         steps = bindStep(json);
         Log.e(TAG, "Steps: " + steps[0].getActionType());
@@ -104,7 +104,7 @@ public class AutomaticService extends AccessibilityService {
         cameraButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startProjection();
+                startProjection("normalOn");
             }
         });
     }
@@ -116,15 +116,16 @@ public class AutomaticService extends AccessibilityService {
             if (steps[finalI].getActionType().equals("click")) {
                 try {
                     synchronized (steps[i]) {
-                        action.clickAction(steps[finalI].getOn(), steps[finalI].getDuration(), steps[finalI].getTries(), AutomaticService.this);
+                        startProjection(steps[finalI].getOn());
+                        Log.e(TAG, "Click number" + finalI );
+                        action.clickAction(550,1075, steps[finalI].getDuration(), steps[finalI].getTries(), AutomaticService.this);
+
                         Thread.sleep(2000);
                     }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-
             }
-
         }
     }
 
@@ -140,9 +141,11 @@ public class AutomaticService extends AccessibilityService {
         return gson.fromJson(json, Step[].class);
 
     }
-    private void startProjection() {
+    private void startProjection(String on) {
+        Log.e(TAG, "Start Projection: ");
         Intent intent = new Intent(this, ScreenCapturePermissionActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra("on", on);
         startActivity(intent);
     }
 

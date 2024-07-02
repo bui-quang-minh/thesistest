@@ -61,6 +61,7 @@ public class ScreenCaptureService extends Service {
     private int mHeight;
     private int mRotation;
     private OrientationChangeCallback mOrientationChangeCallback;
+    private String on;
 
 
 
@@ -186,6 +187,7 @@ public class ScreenCaptureService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+
         Log.e(TAG, "onCreate: sevices started");
         File externalFilesDir = getExternalFilesDir(null);
         if (externalFilesDir != null) {
@@ -217,6 +219,9 @@ public class ScreenCaptureService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.e(TAG, "onStartCommand Services started");
+        if (intent != null) {
+            on = intent.getStringExtra("on");
+        }
         if (isStartCommand(intent)) {
             Pair<Integer, Notification> notification = NotificationUtils.getNotification(this);
             startForeground(notification.first, notification.second);

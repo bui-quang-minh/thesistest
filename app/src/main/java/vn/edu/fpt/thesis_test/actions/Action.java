@@ -6,15 +6,10 @@ import android.graphics.Path;
 import android.util.Log;
 
 public class Action {
-
     private final String TAG = Action.class.getSimpleName();
-    public Path imageToCoordinate(String on){
+    public void clickAction(float x, float y, int duration, int tries, AccessibilityService accessibilityService){
         Path path = new Path();
-        return path;
-    }
-    public void clickAction(String on, int duration, int tries, AccessibilityService accessibilityService){
-        Path path = imageToCoordinate(on);
-        path.moveTo(550, 1075);
+        path.moveTo(x, y);
         GestureDescription.Builder builder = new GestureDescription.Builder();
         builder.addStroke(new GestureDescription.StrokeDescription(path, 0, duration));
         boolean result = accessibilityService.dispatchGesture(builder.build(), new AccessibilityService.GestureResultCallback() {
@@ -31,11 +26,7 @@ public class Action {
             }
 
         },null);
-    }
-
-    public static boolean waitAction(int duration){
-
-        return true;
+        Log.e(TAG, "Gesture Result: " + result);
     }
     public static void swipeAction(){
 
