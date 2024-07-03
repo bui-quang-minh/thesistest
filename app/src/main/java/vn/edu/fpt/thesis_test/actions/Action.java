@@ -6,8 +6,8 @@ import android.graphics.Path;
 import android.util.Log;
 
 public class Action {
-    private final String TAG = Action.class.getSimpleName();
-    public void clickAction(float x, float y, int duration, int tries, AccessibilityService accessibilityService){
+    private static final String TAG = Action.class.getSimpleName();
+    public static void clickAction(float x, float y, int duration, int tries, AccessibilityService accessibilityService){
         Path path = new Path();
         path.moveTo(x, y);
         GestureDescription.Builder builder = new GestureDescription.Builder();

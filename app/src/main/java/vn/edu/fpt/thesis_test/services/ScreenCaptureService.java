@@ -59,6 +59,7 @@ import org.opencv.imgproc.Imgproc;
 import vn.edu.fpt.thesis_test.R;
 import vn.edu.fpt.thesis_test.actions.Action;
 import vn.edu.fpt.thesis_test.helper.NotificationUtils;
+import vn.edu.fpt.thesis_test.model.Coordinate;
 import vn.edu.fpt.thesis_test.model.Step;
 
 public class ScreenCaptureService extends AccessibilityService {
@@ -71,6 +72,8 @@ public class ScreenCaptureService extends AccessibilityService {
     private static final String STOP = "STOP";
     private static final String SCREENCAP_NAME = "screencap";
     private static int IMAGES_PRODUCED;
+    private int ACCURACY_POINT;
+    private Coordinate prev_point = new Coordinate(0, 0);
     private WindowManager windowManager;
     private View overlayView;
     private MediaProjection mMediaProjection;
@@ -87,6 +90,8 @@ public class ScreenCaptureService extends AccessibilityService {
     private String json;
     private Step[] steps;
     private ImageView imageView;
+    private int index = 0;
+    private String appOpened="";
 
     public static Intent getStartIntent(Context context, int resultCode, Intent data) {
         Intent intent = new Intent(context, ScreenCaptureService.class);
@@ -120,58 +125,84 @@ public class ScreenCaptureService extends AccessibilityService {
         @Override
         public void onImageAvailable(ImageReader reader) {
             Action action = new Action();
-            for (int i = 0; i < steps.length; i++) {
-                int finalI = i;
-                if (steps[finalI].getActionType().equals("click")) {
-                            Bitmap bitmap = null;
-                            try (Image image = mImageReader.acquireLatestImage()) {
-                                if (image != null) {
-                                    Image.Plane[] planes = image.getPlanes();
-                                    ByteBuffer buffer = planes[0].getBuffer();
-                                    int pixelStride = planes[0].getPixelStride();
-                                    int rowStride = planes[0].getRowStride();
-                                    int rowPadding = rowStride - pixelStride * mWidth;
-                                    // create bitmap
-                                    bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.ARGB_8888);
-                                    bitmap.copyPixelsFromBuffer(buffer);
-                                    Mat mat = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC4);
-                                    Utils.bitmapToMat(bitmap, mat);
-
-                                    //template bitmap
-                                    URL url = new URL(steps[finalI].getOn());
-                                    Bitmap bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream());
-                                    Mat template = new Mat(bmp.getHeight(), bmp.getWidth(), CvType.CV_8UC4);
-                                    Utils.bitmapToMat(bmp, template);
-                                    //templateMatching
-                                    Mat result = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC4);
-                                    Imgproc.matchTemplate(mat, template, result, Imgproc.TM_CCOEFF_NORMED);
-
-                                    // Find the location of the best match
-                                    Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
-                                    Point matchLoc;
-                                    if (Imgproc.TM_CCOEFF_NORMED == Imgproc.TM_SQDIFF || Imgproc.TM_CCOEFF_NORMED == Imgproc.TM_SQDIFF_NORMED) {
-                                        matchLoc = mmr.minLoc;
-                                    } else {
-                                        matchLoc = mmr.maxLoc;
-                                    }
-                                    Imgproc.rectangle(mat, matchLoc, new Point(matchLoc.x + template.cols(), matchLoc.y + template.rows()), new Scalar(255, 0, 0), 2);
-                                    Bitmap outputBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
-                                    Utils.matToBitmap(mat, outputBitmap);
-                                    imageView.setImageBitmap(outputBitmap);
-                                    IMAGES_PRODUCED++;
-                                    Log.e(TAG, "captured image: " + IMAGES_PRODUCED + "current step: " + finalI + "found at: "+ matchLoc.x + " " + matchLoc.y);
+            if(index<=steps.length){
+                switch (steps[index].getActionType()) {
+                    case "click":
+                        Bitmap bitmap = null;
+                        try (Image image = mImageReader.acquireLatestImage()) {
+                            if (image != null) {
+                                Image.Plane[] planes = image.getPlanes();
+                                ByteBuffer buffer = planes[0].getBuffer();
+                                int pixelStride = planes[0].getPixelStride();
+                                int rowStride = planes[0].getRowStride();
+                                int rowPadding = rowStride - pixelStride * mWidth;
+                                // create bitmap
+                                bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.ARGB_8888);
+                                bitmap.copyPixelsFromBuffer(buffer);
+                                Mat mat = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC4);
+                                Utils.bitmapToMat(bitmap, mat);
+                                //template bitmap
+                                URL url = new URL(steps[index].getOn());
+                                Bitmap bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream());
+                                Mat template = new Mat(bmp.getHeight(), bmp.getWidth(), CvType.CV_8UC4);
+                                Utils.bitmapToMat(bmp, template);
+                                //templateMatching
+                                Mat result = new Mat(bitmap.getHeight(), bitmap.getWidth(), CvType.CV_8UC4);
+                                Imgproc.matchTemplate(mat, template, result, Imgproc.TM_CCOEFF_NORMED);
+                                // Find the location of the best match
+                                Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
+                                Point matchLoc;
+                                if (Imgproc.TM_CCOEFF_NORMED == Imgproc.TM_SQDIFF || Imgproc.TM_CCOEFF_NORMED == Imgproc.TM_SQDIFF_NORMED) {
+                                    matchLoc = mmr.minLoc;
+                                } else {
+                                    matchLoc = mmr.maxLoc;
                                 }
-
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            } finally {
-//                                if (bitmap != null) {
-//                                    bitmap.recycle();
-//                                }
+                                Imgproc.rectangle(mat, matchLoc, new Point(matchLoc.x + template.cols(), matchLoc.y + template.rows()), new Scalar(255, 0, 0), 2);
+                                Bitmap outputBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+                                Utils.matToBitmap(mat, outputBitmap);
+                                imageView.setImageBitmap(outputBitmap);
+                                IMAGES_PRODUCED++;
+                                if (IMAGES_PRODUCED == 1 || (prev_point.getX() == (float) matchLoc.x && prev_point.getY() == (float) matchLoc.y)) {
+                                    ACCURACY_POINT++;
+                                    prev_point.setX((float) matchLoc.x);
+                                    prev_point.setY((float) matchLoc.y);
+                                }
+                                if ((prev_point.getX() != (float) matchLoc.x || prev_point.getY() != (float) matchLoc.y)) {
+                                    ACCURACY_POINT = 0;
+                                    prev_point.setX((float) matchLoc.x);
+                                    prev_point.setY((float) matchLoc.y);
+                                }
+                                if (ACCURACY_POINT == 3) {
+                                    Action.clickAction((float) matchLoc.x + (float) bmp.getWidth() / 2, (float) matchLoc.y + (float) bmp.getHeight() / 2, steps[index].getDuration(), steps[index].getTries(), ScreenCaptureService.this);
+                                    ACCURACY_POINT = 0;
+                                    index++;
+                                }
+                                Log.e(TAG, "captured image: " + IMAGES_PRODUCED + " current step: " + index + "found at: " + matchLoc.x + " " + matchLoc.y + " prev_point: " + prev_point.getX() + " " + prev_point.getY() + " accuracy: " + ACCURACY_POINT + " ImageSize: " + bmp.getWidth() + " " + bmp.getHeight());
                             }
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "openApp":
+                        try (Image image = mImageReader.acquireLatestImage()) {
+                            if(appOpened.equals(steps[index].getOn()))
+                                index++;
+                        }
+                        catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
                 }
+
+            }else{
+                index=0;
+                Log.e(TAG, "onImageAvailable: StopProjection" );
+                stopProjection();
             }
+
         }
+
     }
 
     private class OrientationChangeCallback extends OrientationEventListener {
@@ -217,7 +248,8 @@ public class ScreenCaptureService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-
+        appOpened = event.getText().toString().trim();
+        Log.e(TAG, "onAccessibilityEvent: "+ appOpened);
     }
 
     @Override
@@ -229,22 +261,6 @@ public class ScreenCaptureService extends AccessibilityService {
     public void onCreate() {
         super.onCreate();
         Log.e(TAG, "onCreate: sevices started");
-        File externalFilesDir = getExternalFilesDir(null);
-        if (externalFilesDir != null) {
-            mStoreDir = externalFilesDir.getAbsolutePath() + "/screenshots/";
-            File storeDirectory = new File(mStoreDir);
-            if (!storeDirectory.exists()) {
-                boolean success = storeDirectory.mkdirs();
-                if (!success) {
-                    Log.e(TAG, "failed to create file storage directory.");
-                    stopSelf();
-                }
-            }
-        } else {
-            Log.e(TAG, "failed to create file storage directory, getExternalFilesDir is null.");
-            stopSelf();
-        }
-
         // start capture handling thread
         new Thread() {
             @Override
@@ -335,11 +351,13 @@ public class ScreenCaptureService extends AccessibilityService {
                 mDensity, getVirtualDisplayFlags(), mImageReader.getSurface(), null, mHandler);
         mImageReader.setOnImageAvailableListener(new ImageAvailableListener(), mHandler);
     }
+
     private Step[] bindStep(String json) {
         Gson gson = new Gson();
         return gson.fromJson(json, Step[].class);
 
     }
+
     private void showOverlay() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
@@ -384,6 +402,7 @@ public class ScreenCaptureService extends AccessibilityService {
     private void removeOverlay() {
         if (overlayView != null) {
             windowManager.removeView(overlayView);
+            stopProjection();
             overlayView = null;
         }
     }
