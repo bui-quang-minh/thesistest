@@ -14,4 +14,5 @@ public class Step {
     private String on;
     private int duration;
     private int tries;
+    private String content;
 }

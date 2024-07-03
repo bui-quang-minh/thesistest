@@ -8,6 +8,8 @@ import android.app.Activity;
 import android.app.IntentService;
 import android.app.Notification;
 import android.app.Service;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -29,10 +31,12 @@ import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.OrientationEventListener;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 
@@ -45,6 +49,7 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 import androidx.core.util.Pair;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
 import com.google.gson.Gson;
 
@@ -93,6 +98,7 @@ public class ScreenCaptureService extends AccessibilityService {
     private int index = 0;
     private String appOpened="";
 
+    private AccessibilityNodeInfo source;
     public static Intent getStartIntent(Context context, int resultCode, Intent data) {
         Intent intent = new Intent(context, ScreenCaptureService.class);
         intent.putExtra(ACTION, START);
@@ -125,7 +131,7 @@ public class ScreenCaptureService extends AccessibilityService {
         @Override
         public void onImageAvailable(ImageReader reader) {
             Action action = new Action();
-            if(index<=steps.length){
+            if(index<steps.length){
                 switch (steps[index].getActionType()) {
                     case "click":
                         Bitmap bitmap = null;
@@ -160,7 +166,7 @@ public class ScreenCaptureService extends AccessibilityService {
                                 Imgproc.rectangle(mat, matchLoc, new Point(matchLoc.x + template.cols(), matchLoc.y + template.rows()), new Scalar(255, 0, 0), 2);
                                 Bitmap outputBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
                                 Utils.matToBitmap(mat, outputBitmap);
-                                imageView.setImageBitmap(outputBitmap);
+                                imageView.setImageBitmap(bmp);
                                 IMAGES_PRODUCED++;
                                 if (IMAGES_PRODUCED == 1 || (prev_point.getX() == (float) matchLoc.x && prev_point.getY() == (float) matchLoc.y)) {
                                     ACCURACY_POINT++;
@@ -188,6 +194,17 @@ public class ScreenCaptureService extends AccessibilityService {
                         try (Image image = mImageReader.acquireLatestImage()) {
                             if(appOpened.equals(steps[index].getOn()))
                                 index++;
+                        }
+                        catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    case "paste":
+                        try (Image image = mImageReader.acquireLatestImage()) {
+                            if (image != null) {
+                                pasteFromClipboard(steps[index].getContent());
+                                index++;
+                            }
                         }
                         catch (Exception e) {
                             e.printStackTrace();
@@ -249,6 +266,7 @@ public class ScreenCaptureService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         appOpened = event.getText().toString().trim();
+        source = event.getSource();
         Log.e(TAG, "onAccessibilityEvent: "+ appOpened);
     }
 
@@ -372,7 +390,7 @@ public class ScreenCaptureService extends AccessibilityService {
 
         params.gravity = Gravity.TOP | Gravity.LEFT;
         params.x = 0;
-        params.y = 0;
+        params.y = 200;
 
         windowManager.addView(overlayView, params);
 
@@ -383,19 +401,19 @@ public class ScreenCaptureService extends AccessibilityService {
                 removeOverlay();
             }
         });
-        ImageButton playButton = overlayView.findViewById(R.id.play_button);
-        playButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-            }
-        });
-        ImageButton cameraButton = overlayView.findViewById(R.id.camera);
-        cameraButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-            }
-        });
+//        ImageButton playButton = overlayView.findViewById(R.id.play_button);
+//        playButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//
+//            }
+//        });
+//        ImageButton cameraButton = overlayView.findViewById(R.id.camera);
+//        cameraButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//            }
+//        });
         imageView = overlayView.findViewById(R.id.screenshot_image_view);
     }
 
@@ -405,5 +423,18 @@ public class ScreenCaptureService extends AccessibilityService {
             stopProjection();
             overlayView = null;
         }
+    }
+    private void pasteFromClipboard(String content) {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipData clipData = ClipData.newPlainText("text", content);
+        clipboard.setPrimaryClip(clipData);
+        int supportedActions = source.getActions();
+        boolean isSupported = (supportedActions & AccessibilityNodeInfoCompat.ACTION_PASTE) == AccessibilityNodeInfoCompat.ACTION_PASTE;
+        if (isSupported) {
+            source.performAction(AccessibilityNodeInfoCompat.ACTION_PASTE);
+
+        }
+        Log.e("Error", String.format("AccessibilityNodeInfoCompat.ACTION_PASTE %1$s supported", isSupported ? "is" : "is NOT"));
+
     }
 }

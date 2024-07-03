@@ -1,9 +1,15 @@
 package vn.edu.fpt.thesis_test.actions;
 
+import static androidx.core.content.ContextCompat.getSystemService;
+
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Path;
 import android.util.Log;
+
+import androidx.core.content.ContextCompat;
 
 public class Action {
     private static final String TAG = Action.class.getSimpleName();
@@ -31,4 +37,5 @@ public class Action {
     public static void swipeAction(){
 
     }
+
 }

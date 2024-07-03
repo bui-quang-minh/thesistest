@@ -86,24 +86,24 @@ public class AutomaticService extends AccessibilityService {
                 removeOverlay();
             }
         });
-        ImageButton playButton = overlayView.findViewById(R.id.play_button);
-        playButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    run();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        ImageButton cameraButton = overlayView.findViewById(R.id.camera);
-        cameraButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startProjection("normalOn");
-            }
-        });
+//        ImageButton playButton = overlayView.findViewById(R.id.play_button);
+//        playButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                try {
+//                    run();
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//        });
+//        ImageButton cameraButton = overlayView.findViewById(R.id.camera);
+//        cameraButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                startProjection("normalOn");
+//            }
+//        });
     }
 
     private void run() throws InterruptedException {
